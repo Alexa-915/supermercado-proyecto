@@ -2,6 +2,9 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+const Cliente = require('./Cliente');
+const Empleado = require('./Empleado');
+
 const Venta = sequelize.define('Venta', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   fecha: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
@@ -13,5 +16,8 @@ const Venta = sequelize.define('Venta', {
   tableName: 'ventas',
   timestamps: true
 });
+
+Venta.belongsTo(Cliente, { foreignKey: 'clienteId', as: 'cliente' });
+Venta.belongsTo(Empleado, { foreignKey: 'empleadoId', as: 'empleado' });
 
 module.exports = Venta;

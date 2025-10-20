@@ -21,7 +21,13 @@ ventaController.crear = async (req, res) => {
 // Listar todas
 ventaController.listar = async (req, res) => {
   try {
-    const ventas = await Venta.findAll({ order: [['createdAt', 'DESC']] });
+    const ventas = await Venta.findAll({
+      include: [
+        { association: 'cliente', attributes: ['id', 'nombre', 'correo'] },
+        { association: 'empleado', attributes: ['id', 'nombre', 'correo', 'cargo'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
     return res.json(ventas);
   } catch (err) {
     console.error(err);
