@@ -1,22 +1,46 @@
 // controllers/cliente.js
 const Cliente = require('../models/Cliente');
+const bcrypt = require('bcryptjs'); // para encriptar la contraseña
 
 const clienteController = {};
 
-// Crear cliente
+// Crear cliente (REGISTRO)
 clienteController.crear = async (req, res) => {
   try {
-    const { nombre, correo, telefono, direccion } = req.body;
-    if (!nombre || !correo) return res.status(400).json({ error: 'nombre y correo son obligatorios' });
-    const nuevo = await Cliente.create({ nombre, correo, telefono, direccion });
-    return res.status(201).json(nuevo);
+    const { nombre, apellido, correo, contrasena } = req.body;
+
+    // Validar campos obligatorios
+    if (!nombre || !apellido || !correo || !contrasena)
+      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+
+    // Verificar si ya existe el correo
+    const existe = await Cliente.findOne({ where: { correo } });
+    if (existe)
+      return res.status(400).json({ error: 'Este correo ya está registrado' });
+
+    // Encriptar la contraseña
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(contrasena, salt);
+
+    // Crear cliente
+    const nuevo = await Cliente.create({
+      nombre,
+      apellido,
+      correo,
+      contrasena: hash
+    });
+
+    return res.status(201).json({
+      mensaje: 'Cliente registrado correctamente',
+      cliente: { id: nuevo.id, nombre: nuevo.nombre, correo: nuevo.correo }
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: err.message });
   }
 };
 
-// Listar todos
+// (El resto de métodos: listar, obtener, actualizar, eliminar se pueden dejar igual)
 clienteController.listar = async (req, res) => {
   try {
     const clientes = await Cliente.findAll({ order: [['createdAt', 'DESC']] });
@@ -27,7 +51,7 @@ clienteController.listar = async (req, res) => {
   }
 };
 
-// Obtener por id
+//Obtener
 clienteController.obtenerUno = async (req, res) => {
   try {
     const cliente = await Cliente.findByPk(req.params.id);
@@ -39,7 +63,7 @@ clienteController.obtenerUno = async (req, res) => {
   }
 };
 
-// Actualizar
+//Actualizar
 clienteController.actualizar = async (req, res) => {
   try {
     const cliente = await Cliente.findByPk(req.params.id);
@@ -52,7 +76,7 @@ clienteController.actualizar = async (req, res) => {
   }
 };
 
-// Eliminar
+//Eliminar
 clienteController.eliminar = async (req, res) => {
   try {
     const cliente = await Cliente.findByPk(req.params.id);

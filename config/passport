@@ -1,0 +1,51 @@
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const Cliente = require('../models/Cliente'); // 👈 Importamos el modelo para guardar usuarios
+
+// Validar variables de entorno
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error('Faltan las credenciales de Google OAuth en .env');
+}
+
+// Estrategia de Google
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: process.env.GOOGLE_CALLBACK_URL,
+  scope: ['profile', 'email']
+}, 
+// 🔹 Esta función se ejecuta cuando Google autentica correctamente al usuario
+async (accessToken, refreshToken, profile, done) => {
+  try {
+    // Extraer datos del perfil de Google
+    const email = profile.emails[0].value;
+    const nombre = profile.name?.givenName || 'Sin nombre';
+    const apellido = profile.name?.familyName || '';
+    const foto = profile.photos[0]?.value;
+
+    // Verificar si ya existe en la BD
+    let cliente = await Cliente.findOne({ where: { correo: email } });
+
+    // Si no existe, lo crea automáticamente
+    if (!cliente) {
+      cliente = await Cliente.create({
+        nombre,
+        apellido,
+        correo: email,
+        contrasena: 'GOOGLE_AUTH', // 🔒 Se marca así porque no tiene contraseña
+      });
+    }
+
+    // Pasamos el usuario a la sesión
+    return done(null, cliente);
+  } catch (err) {
+    console.error('❌ Error al autenticar con Google:', err);
+    return done(err, null);
+  }
+}));
+
+// Serialización y deserialización de usuario
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+module.exports = passport;
