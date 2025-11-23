@@ -1,51 +1,105 @@
+// config/passport.js - VERSIÓN ULTRA SEGURA 🔒
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const Cliente = require('../models/Cliente'); // 👈 Importamos el modelo para guardar usuarios
+const Cliente = require('../models/Cliente');
 
-// Validar variables de entorno
+// ✅ Validar variables de entorno
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.error('❌ ERROR: Faltan las credenciales de Google OAuth en .env');
   throw new Error('Faltan las credenciales de Google OAuth en .env');
 }
 
-// Estrategia de Google
+console.log('🔐 Google OAuth configurado en modo SEGURO');
+console.log('📍 Callback URL:', process.env.GOOGLE_CALLBACK_URL);
+
+// ========================================
+// ESTRATEGIA DE GOOGLE - SOLO AUTENTICAR
+// NO CREAR USUARIOS NUEVOS
+// ========================================
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL,
-  scope: ['profile', 'email']
+  callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback',
+  scope: ['profile', 'email'],
+  proxy: true,
+  passReqToCallback: false
 }, 
-// 🔹 Esta función se ejecuta cuando Google autentica correctamente al usuario
 async (accessToken, refreshToken, profile, done) => {
   try {
-    // Extraer datos del perfil de Google
     const email = profile.emails[0].value;
-    const nombre = profile.name?.givenName || 'Sin nombre';
-    const apellido = profile.name?.familyName || '';
-    const foto = profile.photos[0]?.value;
-
-    // Verificar si ya existe en la BD
-    let cliente = await Cliente.findOne({ where: { correo: email } });
-
-    // Si no existe, lo crea automáticamente
+    const nombre = profile.name?.givenName || 'Usuario';
+    
+    console.log('\n🔍 ===== INTENTO DE LOGIN CON GOOGLE =====');
+    console.log('📧 Email:', email);
+    console.log('👤 Nombre:', nombre);
+    console.log('⏰ Fecha:', new Date().toLocaleString());
+    
+    // 🔒 BUSCAR USUARIO EN LA BASE DE DATOS
+    const cliente = await Cliente.findOne({ where: { correo: email } });
+    
+    // ❌ SI NO EXISTE, RECHAZAR INMEDIATAMENTE
     if (!cliente) {
-      cliente = await Cliente.create({
-        nombre,
-        apellido,
-        correo: email,
-        contrasena: 'GOOGLE_AUTH', // 🔒 Se marca así porque no tiene contraseña
+      console.log('❌ ACCESO DENEGADO: Usuario no registrado');
+      console.log('🚫 Email rechazado:', email);
+      console.log('=========================================\n');
+      
+      // ⚠️ IMPORTANTE: Retornar false para RECHAZAR el login
+      return done(null, false, { 
+        message: 'Esta cuenta de Google no está registrada. Debes registrarte primero.' 
       });
     }
-
-    // Pasamos el usuario a la sesión
+    
+    // ✅ SI EXISTE, VERIFICAR QUE LA CONTRASEÑA SEA 'GOOGLE_AUTH'
+    // (Esto asegura que fue registrado correctamente con Google)
+    if (cliente.contrasena !== 'GOOGLE_AUTH') {
+      console.log('⚠️ ADVERTENCIA: Usuario existe pero no fue registrado con Google');
+      console.log('📧 Email:', email);
+      // Aún así, permitir el acceso (es un usuario legítimo)
+    }
+    
+    console.log('✅ ACCESO PERMITIDO: Cliente encontrado');
+    console.log('🆔 ID del cliente:', cliente.id);
+    console.log('📧 Email verificado:', cliente.correo);
+    console.log('=========================================\n');
+    
+    // ✅ Retornar el usuario encontrado
     return done(null, cliente);
+    
   } catch (err) {
-    console.error('❌ Error al autenticar con Google:', err);
+    console.error('\n❌ ===== ERROR EN AUTENTICACIÓN =====');
+    console.error('Error:', err.message);
+    console.error('Stack:', err.stack);
+    console.error('=====================================\n');
     return done(err, null);
   }
 }));
 
-// Serialización y deserialización de usuario
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+// ========================================
+// SERIALIZACIÓN - Guardar ID en sesión
+// ========================================
+passport.serializeUser((user, done) => {
+  console.log('💾 Serializando usuario ID:', user.id, '- Email:', user.correo);
+  done(null, user.id);
+});
+
+// ========================================
+// DESERIALIZACIÓN - Recuperar usuario completo
+// ========================================
+passport.deserializeUser(async (id, done) => {
+  try {
+    const cliente = await Cliente.findByPk(id);
+    
+    if (!cliente) {
+      console.log('⚠️ Usuario no encontrado al deserializar ID:', id);
+      return done(null, false);
+    }
+    
+    console.log('📦 Deserializando usuario:', cliente.correo);
+    done(null, cliente);
+  } catch (err) {
+    console.error('❌ Error al deserializar:', err);
+    done(err, null);
+  }
+});
 
 module.exports = passport;
