@@ -67,7 +67,7 @@ router.post('/login', async (req, res) => {
     const cliente = await Cliente.findOne({ where: { correo } });
 
     if (!cliente) {
-      console.log('❌ Usuario no encontrado');
+       console.log('❌ [Cliente Login] No registrado como cliente:', correo);
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
@@ -466,7 +466,5 @@ router.get('/admin/logout', (req, res) => {
     res.json({ message: 'Sesión cerrada exitosamente' });
   });
 });
-
-
 
 module.exports = router;
