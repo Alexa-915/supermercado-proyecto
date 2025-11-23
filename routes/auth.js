@@ -4,6 +4,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const Cliente = require('../models/Cliente');
 const passport = require('../config/passport');
+const Administrador = require('../models/Administrador');
 
 // ========================================
 // 🔹 REGISTRO MANUAL
@@ -327,5 +328,145 @@ router.get('/logout', (req, res) => {
     res.json({ mensaje: 'Sesión cerrada correctamente' });
   });
 });
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🔐 AUTENTICACIÓN DE ADMINISTRADOR
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 🔐 LOGIN ADMINISTRADOR
+router.post('/admin/login', async (req, res) => {
+  try {
+    const { correo, contrasena } = req.body;
+
+    // Validaciones básicas
+    if (!correo || !contrasena) {
+      return res.status(400).json({ 
+        message: 'Correo y contraseña son obligatorios' 
+      });
+    }
+
+    // Buscar administrador por correo
+    const admin = await Administrador.findOne({ 
+      where: { correo: correo.toLowerCase().trim() } 
+    });
+
+    if (!admin) {
+      console.log(`❌ [Admin Login] Intento fallido - Correo no existe: ${correo}`);
+      return res.status(401).json({ 
+        message: 'Credenciales incorrectas' 
+      });
+    }
+
+    // Verificar si el admin está activo
+    if (!admin.activo) {
+      console.log(`❌ [Admin Login] Cuenta desactivada: ${admin.correo}`);
+      return res.status(403).json({ 
+        message: 'Tu cuenta ha sido desactivada. Contacta al superadministrador.' 
+      });
+    }
+
+    // Verificar contraseña
+    const esValida = await bcrypt.compare(contrasena, admin.contrasena);
+    
+    if (!esValida) {
+      console.log(`❌ [Admin Login] Contraseña incorrecta para: ${correo}`);
+      return res.status(401).json({ 
+        message: 'Credenciales incorrectas' 
+      });
+    }
+
+    // 🎉 LOGIN EXITOSO - Crear sesión
+    req.session.adminId = admin.id;
+    req.session.tipoUsuario = 'admin';
+    
+    console.log(`✅ [Admin Login] Acceso concedido - ${admin.nombre} (${admin.rol}) - ${new Date().toLocaleString('es-CO')}`);
+
+    res.json({
+      message: 'Login exitoso',
+      admin: {
+        id: admin.id,
+        nombre: admin.nombre,
+        correo: admin.correo,
+        rol: admin.rol
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [Admin Login] Error en el servidor:', error);
+    res.status(500).json({ 
+      message: 'Error en el servidor al procesar login' 
+    });
+  }
+});
+
+// ✅ VERIFICAR SESIÓN DE ADMINISTRADOR
+router.get('/admin/check', async (req, res) => {
+  try {
+    // Verificar si hay sesión
+    if (!req.session.adminId || req.session.tipoUsuario !== 'admin') {
+      return res.status(401).json({ 
+        authenticated: false,
+        message: 'No hay sesión activa de administrador' 
+      });
+    }
+
+    // Buscar admin en BD
+    const admin = await Administrador.findByPk(req.session.adminId);
+
+    if (!admin) {
+      req.session.destroy();
+      return res.status(401).json({ 
+        authenticated: false,
+        message: 'Sesión inválida' 
+      });
+    }
+
+    if (!admin.activo) {
+      req.session.destroy();
+      return res.status(403).json({ 
+        authenticated: false,
+        message: 'Cuenta desactivada' 
+      });
+    }
+
+    // Sesión válida
+    res.json({
+      authenticated: true,
+      admin: {
+        id: admin.id,
+        nombre: admin.nombre,
+        correo: admin.correo,
+        rol: admin.rol,
+        foto_perfil: admin.foto_perfil
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [Admin Check] Error:', error);
+    res.status(500).json({ 
+      authenticated: false,
+      message: 'Error al verificar sesión' 
+    });
+  }
+});
+
+// 🚪 LOGOUT ADMINISTRADOR
+router.get('/admin/logout', (req, res) => {
+  const adminNombre = req.session.adminId ? 'Admin' : 'Desconocido';
+  
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('❌ [Admin Logout] Error al cerrar sesión:', err);
+      return res.status(500).json({ 
+        message: 'Error al cerrar sesión' 
+      });
+    }
+    
+    console.log(`🚪 [Admin Logout] Sesión cerrada - ${adminNombre} - ${new Date().toLocaleString('es-CO')}`);
+    res.json({ message: 'Sesión cerrada exitosamente' });
+  });
+});
+
+
 
 module.exports = router;

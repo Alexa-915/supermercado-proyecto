@@ -5,6 +5,7 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('./config/passport');
 const sequelize = require('./config/database');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -75,7 +76,7 @@ require('./models/DetalleVenta');
 app.use('/users', require('./routes/user'));
 app.use('/productos', require('./routes/producto'));
 app.use('/clientes', require('./routes/cliente'));
-app.use('/administradores', require('./routes/administrador'));
+app.use('/api/admin', adminRoutes);
 app.use('/empleados', require('./routes/empleado'));
 app.use('/ventas', require('./routes/venta'));
 app.use('/detalle-ventas', require('./routes/detalleVenta'));
