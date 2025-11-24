@@ -130,24 +130,18 @@ router.get('/google/callback',
     try {
       console.log('\n✅ ===== CALLBACK DE GOOGLE =====');
       
-      // 🔒 VALIDACIÓN ADICIONAL: Verificar que req.user existe
       if (!req.user) {
         console.log('❌ ERROR: req.user es undefined');
         return res.redirect('/auth/google/error');
       }
       
-      // 🔒 VALIDACIÓN DOBLE: Buscar usuario en BD otra vez
       const cliente = await Cliente.findByPk(req.user.id);
       
       if (!cliente) {
-        console.log('❌ ERROR: Usuario no encontrado en BD después de autenticar');
-        console.log('🚫 ID buscado:', req.user.id);
-        
-        // Destruir sesión inmediatamente
+        console.log('❌ ERROR: Usuario no encontrado en BD');
         req.logout((err) => {
           if (err) console.error('Error al destruir sesión:', err);
         });
-        
         return res.redirect('/auth/google/error');
       }
       
@@ -155,22 +149,19 @@ router.get('/google/callback',
       console.log('🆔 ID:', cliente.id);
       console.log('📧 Email:', cliente.correo);
       console.log('👤 Nombre:', cliente.nombre);
+      
+      // ✅ REDIRIGIR CON LOS DATOS EN LA URL PARA GUARDARLOS EN LOCALSTORAGE
+      const redirectUrl = `http://127.0.0.1:5500/google-success.html?id=${cliente.id}&nombre=${encodeURIComponent(cliente.nombre)}`;
+      console.log('🔀 Redirigiendo a:', redirectUrl);
       console.log('================================\n');
       
-      // ✅ TODO CORRECTO - Redirigir a página de usuario
-      res.redirect('http://127.0.0.1:5500/inicio-usuarios.html');
+      res.redirect(redirectUrl);
       
     } catch (err) {
-      console.error('\n❌ ERROR EN CALLBACK:');
-      console.error('Error:', err.message);
-      console.error('Stack:', err.stack);
-      console.error('================================\n');
-      
-      // Destruir sesión en caso de error
+      console.error('\n❌ ERROR EN CALLBACK:', err);
       req.logout((logoutErr) => {
         if (logoutErr) console.error('Error al destruir sesión:', logoutErr);
       });
-      
       res.redirect('/auth/google/error');
     }
   }
