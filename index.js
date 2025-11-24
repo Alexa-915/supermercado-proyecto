@@ -13,27 +13,24 @@ const PORT = process.env.PORT || 3001;
 /* =====================================================
    🛡  CORS COMPLETAMENTE CONFIGURADO
 ===================================================== */
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      const allowedOrigins = [
-        'http://127.0.0.1:5500',
-        'http://localhost:5500',
-        'http://127.0.0.1:5501',
-        'http://localhost:5501',
-      ];
-
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, true); // permitir temporalmente
-      }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'https://tu-frontend.netlify.app', // Lo actualizaremos después
+      process.env.FRONTEND_URL // Variable que configuraremos
+    ];
+    
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Temporalmente permitir todo
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
 
 // Backup para evitar errores
 app.use((req, res, next) => {
@@ -64,14 +61,15 @@ app.use(express.urlencoded({ extended: true }));
 /* =====================================================
    🔐  SESIONES + PASSPORT
 ===================================================== */
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || 'clave_super_secreta',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production', // HTTPS en producción
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000,
     },
   })

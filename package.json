@@ -1,14 +1,18 @@
 {
   "name": "proyecto_int",
   "version": "1.0.0",
-  "description": "",
+  "description": "Supermercado La Fortuna - Backend",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --watch index.js"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -29,7 +33,7 @@
     "type": "git",
     "url": "git+https://github.com/Alexa-915/supermercado-proyecto.git"
   },
-  "keywords": [],
+  "keywords": ["supermercado", "ecommerce", "nodejs"],
   "bugs": {
     "url": "https://github.com/Alexa-915/supermercado-proyecto/issues"
   },
